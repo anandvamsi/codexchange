@@ -21,3 +21,17 @@ def fetch_quotes(hours: int):
     response = requests.get(BASE_API_URL, params={"hours": hours}, timeout=10)
     response.raise_for_status()
     return response.json()
+----------------------------------------
+
+{
+  "mcpServers": {
+    "quote-analytics": {
+      "command": "python",
+      "args": ["server.py"],
+      "env": {
+        "API_TOKEN": "abc123xyz",
+        "QUOTE_API_URL": "https://yourdomain.com/api/quoteDetails"
+      }
+    }
+  }
+}

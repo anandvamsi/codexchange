@@ -22,6 +22,8 @@ governance
 Google Managed Keys
 
 CMEK (Managed via Cloud KMS)
+Customer-Managed Encryption Keys (CMEK) via Cloud KMS: * The keys sit in Google Cloud KMS, but the customer controls the policy
+
 
 Full control (rotate, revoke)
 
@@ -145,6 +147,9 @@ Cloud Storage, Cloud SQL
 Scheduled ingestion jobs [linkedin.com]
 
 4. Data stream :: Only for the database not for Object transfer
+usecase::
+If you need to replicate data changes from an on-premises Oracle database to BigQuery in real time with the lowest overhead, why should you choose Datastream over Storage Transfer Servic
+
 
 Use Datastream when:
 ✅ 1. Real-time analytics
@@ -230,3 +235,177 @@ DataProc
 Flexibility ✅
 Custom Spark jobs ✅
 Cost control with preemptible VMs ✅
+
+
+
+# Big query
+BigQuery currently enforces a limit of 10,000 partitions per table to ensure performance and manageability
+
+
+
+# Dataplex
+ └── Lake (e.g., Sales, Finance)
+      └── Zone (e.g., Raw, Curated)
+           └── Assets (e.g., BigQuery datasets, Cloud Storage buckets)
+
+
+# PTransform using ParDo
+
+
+A method in DoFn(Distributed function)
+    - processElement() method is called for every individual input element?
+    - startBundle()  Called once before a batch (bundle) of elements is processed.
+usecases: 
+ Runs once per bundle, not per element
+Used for:
+- Opening DB connections
+- Initializing buffers
+- Setting up reusable objects
+
+   - finishBundle()
+
+
+## Here is the lifecycle 
+setup() → startBundle() → processElement() → finishBundle() → teardown()
+
+
+setup() runs only once per worker before any data processing starts.
+usecases of setup ()
+
+Because some operations are expensive:
+
+- Opening database connections
+- Creating API clients
+- Loading ML models
+- Reading config files
+
+
+## finishBundle()
+
+Runs after bundle processing
+Used to:
+ - Flush buffers
+ - Write batched results
+
+
+### Super Important Exam Patterns
+🔴 If question mentions:
+
+“High latency” → check misuse of processElement()
+“Repeated initialization” → move to setup()
+“Batching needed” → use bundle methods
+“Retries/duplicates” → idempotency
+
+ If question says:
+“Reduce shuffle cost”
+“Improve aggregation performance”
+“Optimize GroupByKey”
+👉 Answer = Use Combiner
+
+##
+Your Dataflow job is slow.
+You notice:
+80% of data belongs to a single key,,, issue is Hot key skew and solution is Fanout
+
+## Hot Key detection
+Hot key skew occurs when one key has a disproportionately large amount of data, causing a single worker to become a bottleneck and slowing down the pipeline.
+
+Combiner → reduces data before shuffle to improve performance
+# fanour distributes hot keys to avoid worker bottlenecks
+
+## Fanout ::- distributes hot keys to avoid worker bottlenecks
+Memory Shortcut
+👉 “Combine = reduce data"
+👉 “Fanout = spread load”
+
+## side Input
+Side data (Side Input) is a small, read-only dataset used alongside the main pipeline data for enrichment without requiring expensive joins.
+
+If exam says:
+Small dataset
+Lookup/enrichment
+Avoid join
+✅ Answer = Side Input
+
+👉 
+If you see “small dataset for enrichment” → Side Input
+If you see “real-time” → Pub/Sub + Dataflow
+
+
+## Pub/Sub → Dataflow → (Side Input / Combiner / Fanout / ML) → BigQuery
+
+
+Map() Map applies a function to each individual element in a PCollection and returns exactly one output element per input element
+FlatMap() applies a function to each element but allows zero, one, or multiple output elements per input element.
+## coGroupByKey() 
+ used to perform a join between two or more PCollections that share the same key, which is necessary for joining disparate streams.
+
+## Allowed Lateness() :- Beam lets you extend the window’s lifetime for late arrivals
+Problem solved by water marks :- Late events can still arrive after this point.
+
+## Side inputs 
+allow a ParDo to access additional data (like metadata) that is small enough to fit in memory on each worker, avoiding the overhead of a full shuffle join
+
+A ParDo() can use TupleTags to emit elements to different PCollections (side outputs) based on logic within the process element method
+
+Using Combine.perKey() allows for partial aggregation (combining) on the worker side before the shuffle, significantly reducing the amount of data buffered in memory for a single key.
+
+
+If question mentions:
+
+
+✅ Step 1: Identify pipeline type
+
+
+
+KeywordAnswer
+Real-time  Pub/Sub + Dataflow
+HistoricalBatch -> Dataflow
+SQL -> analyticsBigQuery
+
+
+Bigtable 
+optimized for low-latency key-value access
+
+
+## Advanced Cloud Dataflow Optimizations
+
+## Dataflow Shuffle: 
+Offloads group-by-key, join, and partition operations from worker VMs to a specialized backend service. Always enable this if a pipeline is experiencing bottlenecks during heavy aggregation or key-grouping phases.
+
+## Flexible Resource Scheduling (FlexRS): 
+Designed to slash costs for batch jobs that do not have strict completion times. It uses a mix of cheaper preemptible VMs and standard VMs alongside advanced scheduling algorithms.
+
+## Side Inputs: 
+When you need to join a real-time event stream against an auxiliary dataset that is slow-moving or updated periodically (such as a Slowly Changing Dimension / SCD), load the SCD as a Side Input in your ParDo transform. This keeps the lookup data in-memory on the workers, avoiding expensive external database calls per incoming stream element.
+
+
+
+## Spanner Direct reads
+Think of Spanner like a global network of branches (replicas):
+Default: system decides which branch serves you
+Directed Reads: you choose the branch
+
+## Advanced Streaming State & Accumulation Modes
+- Retracting ::-  Always shows latest correct value only
+You care about latest correct value
+ Dashboards (live metrics)
+✅ KPIs (current counts, totals)
+✅ Real-time monitoring
+✅ Financial calculations (latest balance)
+
+
+- Accumulating
+You care about history / all updates
+Example: logs, debugging, audit trail
+
+
+## Apache Beam RunInference 
+Run machine learning (ML) predictions directly inside a data pipeline
+
+
+
+
+
+
+K

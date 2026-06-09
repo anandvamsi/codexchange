@@ -236,6 +236,8 @@ Flexibility ✅
 Custom Spark jobs ✅
 Cost control with preemptible VMs ✅
 
+# Dataproc Metastore 
+ fully managed, highly available Hive Metastore (HMS) that simplifies metadata management for data lakes.
 
 
 # Big query
@@ -404,8 +406,168 @@ Example: logs, debugging, audit trail
 Run machine learning (ML) predictions directly inside a data pipeline
 
 
+# cloud composer
+Cloud Composer: Use KubernetesPodOperator for isolation.
+
+## Cloud Workflows
+Use for low-latency, serverless HTTP/API orchestration (not big data processing).
+
+## Secret Manager
+Never hardcode keys; access via IAM Secret Accessor role.
+
+## Flex templates
+best practice (reusable, CI/CD friendly)
+
+👉 If question says:
+
+“Avoid duplicate records” → think idempotency
+“Message failures” → think dead-letter topic
+
+
+🧠 If you see → Choose:
+Complex DAG → Composer
+Simple orchestration → Workflows
+Time trigger → Scheduler
+Event trigger → Pub/Sub
+CI/CD → Cloud Build
+Templates → Flex Templates
+Avoid duplicates → Idempotency
+Failed messages → Dead-letter queue
 
 
 
+# Cloud Composer: 
+Best for heavy, data-centric pipelines (MapReduce, Spark, Dataflow, complex ELT dependencies). It is cluster-backed (GKE) and has long task runtimes.
 
-K
+# Cloud Workflows: 
+Best for lightweight, serverless, low-latency API orchestration. It chains HTTP-based services (Cloud Functions, Cloud Run, external webhooks) and costs practically nothing when idle.
+low-latency HTTP service orchestration
+
+# The KubernetesPodOperator (KPO) 
+Standard PythonOperator tasks run inline on the main Airflow worker pods. If a task runs heavy processing or has conflicting third-party library versions (e.g., Pandas 1.x vs 2.x), do not use PythonOperator.
+conflicting Python libraries inside Airflow
+
+Concurrency Troubleshooting: If tasks are stuck in a queued or scheduled state indefinitely, but your underlying GKE cluster nodes show low CPU and RAM utilization, it is a software bottleneck. You must increase the ```parallelism``` and ```max_active_tasks_per_dag`` variables inside the airflow.cfg environment overrides.
+
+# TestPipeline
+Unit Testing: Use Apache Beam’s native TestPipeline class to validate transform math against local in-memory mock data. ```No GCP resources are deployed here```.
+
+# Dataflow Flex Templates: 
+Never manage multiple hardcoded Git branches for different environments. Package your Apache Beam pipeline code into a Docker image, store it in Artifact Registry
+
+
+## Storage systems
+
+Analytics (scan large data) → BigQuery / BigLake
+Low-latency transactional → Cloud SQL / AlloyDB / Spanner
+NoSQL flexible schema → Firestore / Bigtable
+Cache / sub-ms access → Memorystore
+Object storage / raw data → Cloud Storage
+
+
+
+🚀 Exam Tricks & Patterns
+🧠 1. Keywords → Service Mapping
+
+“Petabyte analytics” → BigQuery
+“Global consistency” → Spanner
+“Low latency key-value” → Bigtable
+“Document DB” → Firestore
+“Cache / Redis” → Memorystore
+
+## Lifecycle Management 
+Standard → Nearline → Coldline → Archive
+Logs, backups, historical data
+“Reduce cost automatically over time” → lifecycle policy ✅
+
+
+If the scenario describes......the correct service/feature is:"Global asset relational ACID consistency"Cloud Spanner
+"Sub-10ms time-series ingestion at petabyte scale"Cloud Bigtable"SQL queries over data lake files with row-level security
+"BigLake"Eliminating multi-table JOIN overhead in a warehouse"Denormalization using ARRAY and STRUCT fields"Reducing bytes scanned for a specific date range filter"
+Partitioning on the Date/Timestamp column"Optimizing text queries within a pre-existing partition
+
+"Clustering on the query's filter columns"Archiving data automatically after 1 year"Cloud Storage Object Lifecycle Management
+
+# Unified Metadata Harvesting: 
+The process by which Dataplex scans raw object files in GCS and automatically creates corresponding structured table definitions inside BigQuery.
+
+# Flat-rate reservations 
+Flat-rate reservations are designed specifically for this scenario. By purchasing a dedicated amount of slot capacity (BigQuery's unit of compute) and creating separate reservations, you can assign one pool of slots to the Data Science team (for their heavy, long-running jobs) and another pool to the Analytics team (for their short, high-concurrency dashboard queries). This guarantees that a surge in demand from one team does not consume the compute resources needed by the other, ensuring consistent performance for both.
+
+
+# Dataplex data profiling 
+Fully serverless and managed by Google -  Data Profiling = Descriptive analysis of data 
+Dataplex Data Profiling task (often called a Data Profile Scan / DataScan task) is a serverless job in Google Cloud Dataplex (Universal Catalog) that automatically analyzes datasets
+
+ 🧠 Quick Exam Strategy Tips
+
+If question says:
+
+“statistics / insights / nulls” → Profiling
+“rules / validation / pass-fail” → Data Quality
+
+# Cloud Bigtable Row-Key Ordering
+device_id#reversed_timestamp
+
+
+#  BigQuery Caching: Materialized View
+A precomputed, stored query result
+Automatically updated when base data changes
+
+# Bigquery Data Boost
+Data Boost is the critical part that ensures performance isolation; it runs the analytical query using dedicated, on-demand compute resources, which guarantees that the heavy analytical workload will not interfere with the low-latency traffic from the production mobile application.
+
+# BigQuery BI Engine
+is a fast, in-memory analytics service that speeds up SQL queries by caching frequently used data in RAM instead of reading it from storage every time
+
+
+#  BigQuery Storage Cost Optimization: Physical
+If you are storing massive historical archives that are rarely modified (thus occupying long-term storage) and are highly structured (yielding excellent compression ratios), ```Physical Storage Billing is significantly cheaper.```
+
+# Zero-Downtime Dataflow Pipeline Hot-Swaps
+The --update Execution Flag: To deploy a bug fix or code update without halting processing or losing buffered window memory, launch the new pipeline job while passing the --update flag alongside the exact same job name as the currently running pipeline
+
+# Slots, Reservations, and Assignments:
+To ensure business-critical financial reporting dashboards never experience slow queries during peak business hours due to other teams running heavy ad-hoc exploratory scans, ```create a dedicated Reservation of slots and assign the production``` dashboard project to it. Assign ad-hoc analyst projects to a separate, lower-priority or flexible autoscaling reservation pool.
+
+# INFORMATION_SCHEMA 
+It is a set of read-only metadata views that let you query information about:
+Monitoring query performance
+✅ Auditing datasets/tables
+✅ Troubleshooting failures
+✅ Cost analysis (query usage)
+
+
+## Enhanced Flexibility Mode
+use compute capacity (slots) temporarily and release it quickly, instead of long-term commitment.
+
+If question says:
+
+“Avoid long-term commitment”
+“Temporary increase in compute”
+“Short-term workload spikes”
+
+👉 ✅ Answer = Enhanced Flexibility Mode
+
+
+Remember:
+
+DataScan = umbrella resource
+Profiling = descriptive
+Quality = prescriptive
+
+
+Mode trick:
+
+Fast → Lightweight
+Detailed → Standard
+
+
+--update Flag: A Dataflow deployment parameter used to perform in-place upgrades of active streaming jobs without losing intermediate window states or pausing ingestion
+
+
+Bigquery
+Dataflow  Apche beam
+storage and ingestion
+database
+security gov 10%, Data plex, data quality
